@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=utf-8>
+    <title>Three.js Hello app</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100%; height: 100% }
+    </style>
+</head>
+
+<body onload="init()">
+<script src="js/three.js"></script>
+<script src="js/stats.min.js"></script>
+<script src="js/dat.gui.min.js"></script>
+<script src="js-r79/TrackballControls.js"></script>
+
+<!-- ---------------- Custom Shader Code ------------------------ -->
+<script id="vertexShader" type="x-shader/x-vertex">
+uniform vec3 viewVector;
+uniform float c;
+uniform float p;
+varying float intensity;
+void main()
+{
+  vec3 vNormal = normalize( normalMatrix * normal );
+	vec3 vNormel = normalize( normalMatrix * viewVector );
+	intensity = pow( c - dot(vNormal, vNormel), p );
+
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+</script>
+
+<!-- fragment shader a.k.a. pixel shader -->
+<script id="fragmentShader" type="x-shader/x-vertex">
+uniform vec3 glowColor;
+varying float intensity;
+void main()
+{
+	vec3 glow = glowColor * intensity;
+    gl_FragColor = vec4( glow, 0.08 );
+}
+</script>
+
+<script>
+    // Globális változók
+    var WIDTH, HEIGHT, aspectRatio;
+    var renderer;
+    var scene, camera;
+    var geometry, material, mesh;
+    var ambientLight;
+    var stats;
+    var meshAstronaut;
+    var meshVisor;
+    var controls;
+
+
+/*
+    function loader() {
+      var textureLoader = new THREE.TextureLoader();
+      var textureAstronaut = textureLoader.load( 'assets/astronaut.png' );
+
+      var loader = new THREE.JSONLoader(manager);
+      loader.load( 'assets/astronaut.json', function ( geometry ) {
+          var material = new THREE.MeshLambertMaterial( { color: 0xf2f2f2, wireframe: false, side: THREE.DoubleSide } );
+          material.map = textureAstronaut;
+          meshAstronaut = new THREE.Mesh( geometry, material );
+          meshAstronaut.scale.set( 3, 3, 3 );
+
+          init();
+      });
+    }
+
+*/
+    function addStatsObject() {
+      stats = new Stats();
+      stats.setMode(0);
+
+      stats.domElement.style.position = 'absolute';
+      stats.domElement.style.left = '0px';
+      stats.domElement.style.top = '0px';
+      document.body.appendChild( stats.domElement );
+    }
+
+
+    function init() {
+        var manager = new THREE.LoadingManager();
+        HEIGHT = window.innerHeight;
+        WIDTH = window.innerWidth;
+        aspectRatio = WIDTH / HEIGHT;
+        renderer = new THREE.WebGLRenderer( { antialias: true } );
+        renderer.setSize( WIDTH, HEIGHT );
+        renderer.setClearColor( 0x00001a );
+        document.body.appendChild( renderer.domElement );
+
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.0007);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // CAMERA ----------------------------------------------------------------------------
+        camera = new THREE.PerspectiveCamera( 75, aspectRatio, 0.1, 1000 );
+        camera.position.z = 15;
+        camera.lookAt( scene.position );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // MODELS ----------------------------------------------------------------------------
+        // sphere
+        var textureLoader = new THREE.TextureLoader(manager);
+        var texture = textureLoader.load( 'assets/tc-earth_daymap.jpg' );
+        geometry = new THREE.SphereGeometry( 3, 50, 30);
+        material = new THREE.MeshPhongMaterial();
+        material.map = texture;
+        mesh = new THREE.Mesh( geometry, material );
+        mesh.rotation.z = 0.2;
+        mesh.position.x -= 10;
+        scene.add( mesh );
+
+
+
+        	// create custom material from the shader code above
+        	//   that is within specially labeled script tags
+        	var customMaterial = new THREE.ShaderMaterial(
+        	{
+        	    uniforms:
+        		{
+        			"c":   { type: "f", value: 1.0 },
+        			"p":   { type: "f", value: 1.4 },
+        			glowColor: { type: "c", value: new THREE.Color(0xccffff) },
+        			viewVector: { type: "v3", value: camera.position }
+        		},
+        		vertexShader:   document.getElementById( 'vertexShader'   ).textContent,
+        		fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+        		side: THREE.FrontSide,
+        		blending: THREE.AdditiveBlending,
+        		transparent: true
+        	}   );
+
+        	this.earthGlow = new THREE.Mesh( geometry.clone(), customMaterial.clone() );
+          earthGlow.position = geometry.position;
+          earthGlow.position.x -= 10;
+        	earthGlow.scale.multiplyScalar(1.2);
+        	scene.add( earthGlow );
+
+
+
+
+        // astronaut
+        var textureAstronaut = textureLoader.load( 'assets/astronaut.png' );
+        var loader = new THREE.JSONLoader(manager);
+        loader.load( 'assets/astronaut.json', function ( geometry ) {
+            material = new THREE.MeshLambertMaterial( { color: 0xf2f2f2, wireframe: false, side: THREE.DoubleSide } );
+            material.map = textureAstronaut;
+            meshAstronaut = new THREE.Mesh( geometry, material );
+            meshAstronaut.scale.set( 3, 3, 3 );
+            scene.add(meshAstronaut);
+        });
+
+        // visor
+        var textureVisor = textureLoader.load( 'assets/visor.png' );
+        loader.load( 'assets/visor.json', function ( geometry ) {
+            material = new THREE.MeshLambertMaterial( { color: 0xf2f2f2, wireframe: false, side: THREE.DoubleSide } );
+            material.map = textureVisor;
+            meshVisor = new THREE.Mesh( geometry, material );
+            meshVisor.scale.set( 3, 3, 3 );
+            scene.add(meshVisor);
+        });
+
+
+
+
+
+
+
+
+        // particles
+        var particlesGeometry = new THREE.Geometry();
+        particleCount = 100000;
+        for( i = 0; i < particleCount; i++ ) {
+            var vertex = new THREE.Vector3();
+            vertex.x = Math.random() * 6000 - 3000;
+            vertex.y = Math.random() * 6000 - 3000;
+            vertex.z = Math.random() * 6000 - 3000;
+            particlesGeometry.vertices.push( vertex );
+        }
+        var particlesMaterial = new THREE.PointsMaterial( {size: 1, color: 0xffffff, sizeAttenuation: true } );
+        particles = new THREE.Points( particlesGeometry, particlesMaterial );
+
+        scene.add( particles );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // LIGHTS ----------------------------------------------------------------------------
+
+        var sLight = new THREE.SpotLight( 0xffffff, 1 );
+        sLight.position.set(0,10,15);
+        sLight.angle = Math.PI / 2;
+        sLight.target = mesh;
+        scene.add(sLight);
+
+        var light = new THREE.AmbientLight( 0x404040 ); // soft white light
+        scene.add( light )
+
+
+
+        controls = new THREE.TrackballControls( camera, renderer.domElement );
+        controls.rotateSpeed = 5.0;
+        controls.panSpeed = 1.0;
+
+        window.addEventListener( 'resize', handleWindowResize, false );
+        addStatsObject();
+        render();
+    }
+
+    function handleWindowResize() {
+        HEIGHT = window.innerHeight;
+        WIDTH = window.innerWidth;
+        console.log( 'WIDTH=' + WIDTH + '; HEIGHT=' + HEIGHT );
+        renderer.setSize( WIDTH, HEIGHT );
+        aspectRatio = WIDTH / HEIGHT;
+        camera.aspect = aspectRatio;
+        camera.updateProjectionMatrix();
+    }
+
+
+
+    var render = function () {
+
+        requestAnimationFrame( render );
+
+        particles.rotation.x += 0.0001;
+        particles.rotation.y -= 0.0001;
+        mesh.rotation.y += 0.0005;
+        meshAstronaut.rotation.x += 0.0008;
+        meshAstronaut.rotation.y += 0.0008;
+        meshVisor.rotation.x += 0.0008;
+        meshVisor.rotation.y += 0.0008;
+
+        controls.update();
+        renderer.render( scene, camera );
+        stats.update();
+    };
+
+</script>
+</body>
+</html>
