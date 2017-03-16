@@ -43,6 +43,24 @@ void main()
 }
 </script>
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 <script>
     // Globális változók
     var WIDTH, HEIGHT, aspectRatio;
@@ -57,8 +75,10 @@ void main()
     var effect;
     var THREEDEE = false;
     var EXPLODE = false;
+    var SHAKE = false;
     var explosionGeometry = new THREE.Geometry();
     var explosionGeometry_base;
+    var cameraFocus = new THREE.Vector3(0,0,0);
 
 
     // FPS COUNTER --------------------------------------------------
@@ -90,9 +110,11 @@ void main()
         };
         this.ExplodeEarth = function() {
           EXPLODE = true;
+          SHAKE = true;
         }
         this.ResetEarth = function() {
           EXPLODE = false;
+          SHAKE = false;
           resetEarth();
         }
     };
@@ -133,7 +155,7 @@ void main()
         // CAMERA ----------------------------------------------------------------------------
         camera = new THREE.PerspectiveCamera( 75, aspectRatio, 0.1, 1000 );
         camera.position.z = 15;
-        camera.lookAt( scene.position );
+        camera.lookAt( cameraFocus );
 
 
 
@@ -280,7 +302,7 @@ void main()
 
         // explosion particles
         count = 0;
-        while (count < 100000) {
+        while (count < 250000) {
           var e_vertex = new THREE.Vector3();
           var phi = Math.random() * Math.PI * 2;
           var theta = Math.acos(Math.random() * 2 - 1);
@@ -381,6 +403,16 @@ void main()
       explosionGeometry.verticesNeedUpdate = true;
     }
 
+    function cameraShake() {
+      x = Math.random() - 0.5;
+      y = Math.random() - 0.5;
+      z = Math.random() - 0.5;
+
+      camera.position.x += x;
+      camera.position.y += y;
+      camera.position.z += z;
+    }
+
 
     var render = function () {
 
@@ -405,6 +437,9 @@ void main()
           effect.render( scene, camera );
         else
           renderer.render( scene, camera );
+
+        if (SHAKE)
+          cameraShake();
         stats.update();
     };
 
