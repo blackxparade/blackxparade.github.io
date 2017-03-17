@@ -70,7 +70,8 @@ void main()
     var ambientLight;
     var stats;
     var meshAstronaut = new THREE.Mesh();
-    var meshVisor= new THREE.Mesh();
+    var meshVisor = new THREE.Mesh();
+    var meshShip = new THREE.Mesh();
     var controls;
     var effect;
     var THREEDEE = false;
@@ -215,6 +216,38 @@ void main()
 
 
 
+/*
+          textGeo = new THREE.PlaneGeometry(300,300);
+          textTexture = textureLoader.load('assets/myText.png');
+          textMaterial = new THREE.MeshLambertMaterial(
+            {color: 0x00ffff,
+              opacity: 1,
+              map: textTexture,
+              transparent: true,
+              blending: THREE.AdditiveBlending});
+          text = new THREE.Mesh(textGeo,textMaterial);
+          text.position.z = -200;
+          scene.add(text);
+
+          smokeTexture = textureLoader.load('assets/Smoke.png');
+          smokeMaterial = new THREE.MeshLambertMaterial({color: 0x0d34a8, map: smokeTexture, transparent: true});
+          smokeGeo = new THREE.PlaneGeometry(300,300);
+          smokeParticles = [];
+
+
+          for (p = 0; p < 150; p++) {
+            var particle = new THREE.Mesh(smokeGeo,smokeMaterial);
+            particle.position.set(Math.random()*500-250,
+                                  Math.random()*500-250,
+                                  Math.random()*-1000-100);
+            particle.rotation.z = Math.random() * 360;
+            scene.add(particle);
+            smokeParticles.push(particle);
+        }
+*/
+
+
+
         // astronaut
         var textureAstronaut = textureLoader.load( 'assets/astronaut.png' );
         var loader = new THREE.JSONLoader(manager);
@@ -227,7 +260,7 @@ void main()
         });
 
         // visor
-        var textureVisor = textureLoader.load( 'assets/visor.png' );
+        var textureVisor = textureLoader.load( 'assets/visor2.png' );
         loader.load( 'assets/visor.json', function ( geometry ) {
             material = new THREE.MeshLambertMaterial( { color: 0xf2f2f2, wireframe: false, side: THREE.DoubleSide } );
             material.map = textureVisor;
@@ -274,6 +307,16 @@ void main()
 
 
 
+        var textureShip = textureLoader.load( 'assets/spstob_1.jpg' );
+        loader.load( 'assets/spaceship.json', function ( geometry ) {
+            material = new THREE.MeshLambertMaterial( { color: 0xf2f2f2, wireframe: false, side: THREE.DoubleSide } );
+            material.map = textureShip;
+            meshShip = new THREE.Mesh( geometry, material );
+            meshShip.scale.set( 0.1, 0.1, 0.1 );
+            meshShip.position.set(0,0,-70);
+            meshShip.rotation.y += 1;
+            scene.add(meshShip);
+        });
 
 
 
@@ -293,7 +336,7 @@ void main()
             vertex.z = Math.random() * 6000 - 3000;
             particlesGeometry.vertices.push( vertex );
         }
-        var particlesMaterial = new THREE.PointsMaterial( {size: 2, color: 0xffffff, sizeAttenuation: true } );
+        var particlesMaterial = new THREE.PointsMaterial( {size: 2, color: 0xffffff, sizeAttenuation: true, transparent: true, blending: THREE.AdditiveBlending } );
         particlesMaterial.map = textureParticles;
         particles = new THREE.Points( particlesGeometry, particlesMaterial );
         scene.add( particles );
@@ -315,6 +358,7 @@ void main()
         }
         var explosionMaterial = new THREE.PointsMaterial( {size: 0.1, color: 0xff0000, sizeAttenuation: true } );
         explosion = new THREE.Points( explosionGeometry, explosionMaterial );
+        explosion.position.x = mesh.position.x;
         explosionGeometry_base = explosionGeometry;
         scene.add( explosion );
 
@@ -380,6 +424,8 @@ void main()
     }
 
     function explode() {
+      scene.remove(mesh);
+      scene.remove(earthGlow);
       origin = new THREE.Vector3(0, 0, 0);
 
       for (i=0; i<explosionGeometry.vertices.length; i++) {
@@ -392,6 +438,8 @@ void main()
     }
 
     function resetEarth() {
+      scene.add(mesh);
+      scene.add(earthGlow);
       for (i=0; i<explosionGeometry.vertices.length; i++) {
         phi = Math.random() * Math.PI * 2;
         theta = Math.acos(Math.random() * 2 - 1);
@@ -404,15 +452,20 @@ void main()
     }
 
     function cameraShake() {
-      x = Math.random() - 0.5;
-      y = Math.random() - 0.5;
-      z = Math.random() - 0.5;
-
-      camera.position.x += x;
-      camera.position.y += y;
-      camera.position.z += z;
+      camera.position.x += Math.random() - 0.5;
+      camera.position.y += Math.random() - 0.5;
+      camera.position.z += Math.random() - 0.5;
     }
 
+
+/*
+    function evolveSmoke() {
+      var sp = smokeParticles.length;
+      while(sp--) {
+          smokeParticles[sp].rotation.z += 0.002;
+      }
+    }
+*/
 
     var render = function () {
 
@@ -428,6 +481,9 @@ void main()
         meshVisor.rotation.y += 0.0008;
         group.rotation.x += 0.0003;
         group.rotation.y += 0.0003;
+
+
+        //evolveSmoke();
 
         if (EXPLODE)
           explode();
