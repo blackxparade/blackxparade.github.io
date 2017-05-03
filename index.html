@@ -16,6 +16,7 @@
 <script src="js-r79/TrackballControls.js"></script>
 <script src="js/AnaglyphEffect.js"></script>
 
+
 <!-- ---------------- Custom Shader Code ------------------------ -->
 <script id="vertexShader" type="x-shader/x-vertex">
 uniform vec3 viewVector;
@@ -139,6 +140,8 @@ void main()
     // INITIALIZER ---------------------------------------------------
     function init() {
 
+
+
         var manager = new THREE.LoadingManager();
         HEIGHT = window.innerHeight;
         WIDTH = window.innerWidth;
@@ -146,6 +149,7 @@ void main()
         renderer = new THREE.WebGLRenderer( { antialias: false } );
         renderer.setSize( WIDTH, HEIGHT );
         renderer.setClearColor( 0x00001a );
+        //renderer.shadowMapEnabled = true;
         document.body.appendChild( renderer.domElement );
 
         effect = new THREE.AnaglyphEffect( renderer );
@@ -153,7 +157,6 @@ void main()
 
         scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x000000, 0.0007);
-
 
 
 
@@ -247,7 +250,7 @@ void main()
               blending: THREE.AdditiveBlending});
           text = new THREE.Mesh(textGeo,textMaterial);
           text.position.y = 9;
-          text.position.z = 1750;
+          text.position.z = 1800;
           scene.add(text);
 
           smokeTexture = textureLoader.load('assets/Smoke.png');
@@ -557,6 +560,15 @@ void main()
 
     var render = function () {
 
+
+
+        document.onkeypress=function(e){
+            console.log("key pressed");
+            ROLLCAM = true;
+        }
+
+
+
         requestAnimationFrame( render );
 
         mesh.rotation.y += 0.0005;
@@ -594,6 +606,8 @@ void main()
           effect.render( scene, camera );
         else
           renderer.render( scene, camera );
+
+
 
         if (SHAKE)
           cameraShake();
