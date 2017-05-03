@@ -72,11 +72,15 @@ void main()
     var meshAstronaut = new THREE.Mesh();
     var meshVisor = new THREE.Mesh();
     var meshShip = new THREE.Mesh();
+    var meshBigAsteroid = new THREE.Mesh();
     var controls;
     var effect;
     var THREEDEE = false;
     var EXPLODE = false;
     var SHAKE = false;
+    var FARCAM = false;
+    var ROLLCAM = false;
+    var HITASTEROID = false;
     var explosionGeometry = new THREE.Geometry();
     var explosionGeometry_base;
     var cameraFocus = new THREE.Vector3(0,0,0);
@@ -99,6 +103,9 @@ void main()
         gui.add( controlObject, 'AnaglyphEffect' );
         gui.add( controlObject, 'ExplodeEarth');
         gui.add( controlObject, 'ResetEarth');
+        gui.add( controlObject, 'FarCamera');
+        gui.add( controlObject, 'RollCamera');
+        gui.add( controlObject, 'HitAsteroid');
         gui.domElement.style.position = 'absolute';
         gui.domElement.style.top = '0px';
         gui.domElement.style.right = '0px';
@@ -117,6 +124,15 @@ void main()
           EXPLODE = false;
           SHAKE = false;
           resetEarth();
+        }
+        this.FarCamera = function() {
+          cameraPos();
+        }
+        this.RollCamera = function() {
+          ROLLCAM = !ROLLCAM;
+        }
+        this.HitAsteroid = function() {
+          HITASTEROID = !HITASTEROID;
         }
     };
 
@@ -220,21 +236,22 @@ void main()
 
 
 
-/*
+          // smoke
           textGeo = new THREE.PlaneGeometry(300,300);
           textTexture = textureLoader.load('assets/myText.png');
           textMaterial = new THREE.MeshLambertMaterial(
-            {color: 0x00ffff,
-              opacity: 1,
+            {color: 0xffffff,
+              opacity: 0.7,
               map: textTexture,
               transparent: true,
               blending: THREE.AdditiveBlending});
           text = new THREE.Mesh(textGeo,textMaterial);
-          text.position.z = -200;
+          text.position.y = 9;
+          text.position.z = 1750;
           scene.add(text);
 
           smokeTexture = textureLoader.load('assets/Smoke.png');
-          smokeMaterial = new THREE.MeshLambertMaterial({color: 0x0d34a8, map: smokeTexture, transparent: true});
+          smokeMaterial = new THREE.MeshLambertMaterial({color: 0x2664c9, map: smokeTexture, transparent: true});
           smokeGeo = new THREE.PlaneGeometry(300,300);
           smokeParticles = [];
 
@@ -243,12 +260,13 @@ void main()
             var particle = new THREE.Mesh(smokeGeo,smokeMaterial);
             particle.position.set(Math.random()*500-250,
                                   Math.random()*500-250,
-                                  Math.random()*-1000-100);
+                                  Math.random()*-1000-100+1900);
             particle.rotation.z = Math.random() * 360;
+            //particle.position.z = particle.position.z + 1800
             scene.add(particle);
             smokeParticles.push(particle);
         }
-*/
+
 
 
 
@@ -271,7 +289,15 @@ void main()
             meshVisor = new THREE.Mesh( geometry, material );
             meshVisor.scale.set( 3, 3, 3 );
             scene.add(meshVisor);
+
         });
+
+
+
+
+
+
+
 
         // asteroids
         var textureAsteroid = textureLoader.load( 'assets/asteroid.jpg' );
@@ -295,6 +321,22 @@ void main()
             }
             //meshAsteroid.scale.set( 3, 3, 3 );
             scene.add(group);
+        });
+
+        // BIG asteroid
+        var textureBigAsteroid = textureLoader.load( 'assets/bigasteroid.jpg' );
+        var textureBigAsteroidBump = textureLoader.load( 'assets/bigasteroidbump.jpg' );
+        loader.load( 'assets/asteroid.json', function ( geometry ) {
+            material = new THREE.MeshPhongMaterial( { color: 0xf2f2f2, wireframe: false, side: THREE.DoubleSide } );
+            material.map = textureBigAsteroid;
+            material.bumpMap = textureBigAsteroidBump;
+            material.bumpScale = 0.8;
+            meshBigAsteroid = new THREE.Mesh( geometry, material );
+            meshBigAsteroid.scale.set( 5, 5, 5 );
+            meshBigAsteroid.position.x -= 200;
+            meshBigAsteroid.position.z -= 150;
+            meshBigAsteroid.position.y -= 75;
+            scene.add(meshBigAsteroid);
         });
 
         // moon
@@ -399,6 +441,13 @@ void main()
         pointLight.position.set( 0, 100, 250 );
         scene.add( pointLight );
 
+        var sLight2 = new THREE.SpotLight( {color: 0xffffff, intensity: 1} );
+        sLight2.position.set(0,20,1900);
+        sLight2.angle = Math.PI / 2;
+        sLight2.target = text;
+        sLight2.distance = 1500;
+        scene.add(sLight2);
+
 
 
         controls = new THREE.TrackballControls( camera, renderer.domElement );
@@ -411,6 +460,11 @@ void main()
         addStatsObject();
         render();
     }
+
+
+
+
+
 
     function handleWindowResize() {
         HEIGHT = window.innerHeight;
@@ -430,6 +484,19 @@ void main()
     function normalizeVector(v) {
       length = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
       return new THREE.Vector3(v.x / length, v.y / length, v.z / length);
+    }
+
+    function hitAsteroid(){
+      asteroidDirection = normalizeVector(directionalVector(mesh.position, meshBigAsteroid.position));
+      if (meshBigAsteroid.position.x + 1 <= mesh.position.x) {
+        meshBigAsteroid.position.x -= asteroidDirection.x;
+        meshBigAsteroid.position.y -= asteroidDirection.y;
+        meshBigAsteroid.position.z -= asteroidDirection.z;
+        console.log(asteroidDirection);
+      } else {
+        console.log("kek");
+        explode();
+      }
     }
 
     function explode() {
@@ -460,6 +527,18 @@ void main()
       explosionGeometry.verticesNeedUpdate = true;
     }
 
+    function cameraPos() {
+      if (!FARCAM) {
+        camera.position.y = 9;
+        camera.position.z = 2000;
+      } else {
+        camera.position.y = 9;
+        camera.position.z = 40;
+      }
+      FARCAM = !FARCAM;
+    }
+
+
     function cameraShake() {
       camera.position.x += Math.random() - 0.5;
       camera.position.y += Math.random() - 0.5;
@@ -467,19 +546,18 @@ void main()
     }
 
 
-/*
+
     function evolveSmoke() {
       var sp = smokeParticles.length;
       while(sp--) {
-          smokeParticles[sp].rotation.z += 0.002;
+          smokeParticles[sp].rotation.z += 0.004;
       }
     }
-*/
+
 
     var render = function () {
 
         requestAnimationFrame( render );
-
 
         mesh.rotation.y += 0.0005;
         meshAstronaut.rotation.x += 0.0008;
@@ -492,13 +570,23 @@ void main()
         group.rotation.y += 0.0003;
 
 
-        //evolveSmoke();
+
+        evolveSmoke();
+
+        if (HITASTEROID)
+          hitAsteroid();
 
         if (EXPLODE)
           explode();
 
+        if (ROLLCAM && camera.position.z > 50) {
+          camera.position.z -= 7;
+        }
+
+        if (camera.position.z == 50) ROLLCAM = false;
+
         controls.update();
-        console.log(camera.position);
+        //console.log(camera.position);
 
 
 
@@ -510,6 +598,7 @@ void main()
         if (SHAKE)
           cameraShake();
         stats.update();
+
     };
 
 </script>
