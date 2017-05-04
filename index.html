@@ -15,6 +15,7 @@
 <script src="js/dat.gui.min.js"></script>
 <script src="js-r79/TrackballControls.js"></script>
 <script src="js/AnaglyphEffect.js"></script>
+<script src="js/GPUParticleSystem.js"></script>
 
 
 <!-- ---------------- Custom Shader Code ------------------------ -->
@@ -79,12 +80,21 @@ void main()
     var THREEDEE = false;
     var EXPLODE = false;
     var SHAKE = false;
+    var SMALLSHAKE = false;
     var FARCAM = false;
     var ROLLCAM = false;
     var HITASTEROID = false;
+    var EXPLOSIONPARTICLES = false;
+    var SHOCKWAVE_b = false;
     var explosionGeometry = new THREE.Geometry();
     var explosionGeometry_base;
+    var explosion = new THREE.Points();
     var cameraFocus = new THREE.Vector3(0,0,0);
+    var particles = new THREE.Points();
+    var particlesGeometry = new THREE.Geometry();
+    var group = new THREE.Object3D();
+    var options, spawnerOptions;
+    var camera, tick = 0, tick2 = 0, clock = new THREE.Clock(), particleSystem, earthParticles;
 
 
     // FPS COUNTER --------------------------------------------------
@@ -102,11 +112,10 @@ void main()
     function addControlGui( controlObject ) {
         var gui = new dat.GUI( { autoPlace: false });
         gui.add( controlObject, 'AnaglyphEffect' );
-        gui.add( controlObject, 'ExplodeEarth');
-        gui.add( controlObject, 'ResetEarth');
+
         gui.add( controlObject, 'FarCamera');
-        gui.add( controlObject, 'RollCamera');
         gui.add( controlObject, 'HitAsteroid');
+        gui.add( controlObject, 'EXP');
         gui.domElement.style.position = 'absolute';
         gui.domElement.style.top = '0px';
         gui.domElement.style.right = '0px';
@@ -116,25 +125,17 @@ void main()
     var RenderController = function () {
         this.AnaglyphEffect = function() {
             THREEDEE = !THREEDEE;
-        };
-        this.ExplodeEarth = function() {
-          EXPLODE = true;
-          SHAKE = true;
-        }
-        this.ResetEarth = function() {
-          EXPLODE = false;
-          SHAKE = false;
-          resetEarth();
         }
         this.FarCamera = function() {
           cameraPos();
         }
-        this.RollCamera = function() {
-          ROLLCAM = !ROLLCAM;
-        }
         this.HitAsteroid = function() {
           HITASTEROID = !HITASTEROID;
         }
+        this.EXP = function () {
+          EXPLOSIONPARTICLES = !EXPLOSIONPARTICLES;
+        }
+
     };
 
     // INITIALIZER ---------------------------------------------------
@@ -180,9 +181,45 @@ void main()
 
 
 
+        options = {
+        				position: new THREE.Vector3(),
+        				positionRandomness: 3,
+        				velocity: new THREE.Vector3(),
+        				velocityRandomness: 3,
+        				color: 0xff0000,
+        				colorRandomness: 0,
+        				turbulence: 0,
+        				lifetime: 3,
+        				size: 10,
+        				sizeRandomness: 0
+        			};
 
 
+       earthOptions = {
+              	position: new THREE.Vector3(),
+              	positionRandomness: 3,
+              	velocity: new THREE.Vector3(),
+              	velocityRandomness: 3,
+              	color: 0xff0000,
+              	colorRandomness: 0,
+              	turbulence: 0,
+              	lifetime: 10,
+              	size: 30,
+              	sizeRandomness: 0
+              };
 
+        spawnerOptions = {
+        				spawnRate: 15000,
+        				horizontalSpeed: 1.5,
+        				verticalSpeed: 1.33,
+        				timeScale: 1
+        			};
+
+
+        particleSystem = new THREE.GPUParticleSystem( { maxParticles: 250000} );
+        scene.add( particleSystem );
+        earthParticles = new THREE.GPUParticleSystem( { maxParticles: 250000} );
+        scene.add( earthParticles );
 
 
 
@@ -281,6 +318,9 @@ void main()
             material.map = textureAstronaut;
             meshAstronaut = new THREE.Mesh( geometry, material );
             meshAstronaut.scale.set( 3, 3, 3 );
+            meshAstronaut.position.x = 1;
+            meshAstronaut.position.y = 1;
+            meshAstronaut.position.z = 1;
             scene.add(meshAstronaut);
         });
 
@@ -291,6 +331,9 @@ void main()
             material.map = textureVisor;
             meshVisor = new THREE.Mesh( geometry, material );
             meshVisor.scale.set( 3, 3, 3 );
+            meshVisor.position.x = 1;
+            meshVisor.position.y = 1;
+            meshVisor.position.z = 1;
             scene.add(meshVisor);
 
         });
@@ -337,8 +380,8 @@ void main()
             meshBigAsteroid = new THREE.Mesh( geometry, material );
             meshBigAsteroid.scale.set( 5, 5, 5 );
             meshBigAsteroid.position.x -= 200;
-            meshBigAsteroid.position.z -= 150;
-            meshBigAsteroid.position.y -= 75;
+            meshBigAsteroid.position.z -= 200;
+            meshBigAsteroid.position.y -= 200;
             scene.add(meshBigAsteroid);
         });
 
@@ -379,7 +422,7 @@ void main()
 
         // particles
         var textureParticles = textureLoader.load( 'assets/star.jpg' );
-        var particlesGeometry = new THREE.Geometry();
+        particlesGeometry = new THREE.Geometry();
         particleCount = 100000;
         for( i = 0; i < particleCount; i++ ) {
             var vertex = new THREE.Vector3();
@@ -495,16 +538,22 @@ void main()
         meshBigAsteroid.position.x -= asteroidDirection.x;
         meshBigAsteroid.position.y -= asteroidDirection.y;
         meshBigAsteroid.position.z -= asteroidDirection.z;
-        console.log(asteroidDirection);
+        //console.log(asteroidDirection);
+        SMALLSHAKE = true;
       } else {
         console.log("kek");
-        explode();
+        SMALLSHAKE = false;
+        EXPLODE = true;
+        //scene.remove( particleSystem );
       }
     }
 
     function explode() {
       scene.remove(mesh);
       scene.remove(earthGlow);
+      EXPLOSIONPARTICLES = true;
+      SHAKE = true;
+      SHOCKWAVE_b = true;
       origin = new THREE.Vector3(0, 0, 0);
 
       for (i=0; i<explosionGeometry.vertices.length; i++) {
@@ -548,6 +597,12 @@ void main()
       camera.position.z += Math.random() - 0.5;
     }
 
+    function cameraSmallShake() {
+      camera.position.x += (Math.random() - 0.5) * 0.1;
+      camera.position.y += (Math.random() - 0.5) * 0.1;
+      camera.position.z += (Math.random() - 0.5) * 0.1;
+    }
+
 
 
     function evolveSmoke() {
@@ -557,19 +612,103 @@ void main()
       }
     }
 
+    function shockwave() {
+      origin = mesh.position;
+      for( var i = scene.children.length - 1; i >= 0; i--) {
+        if (scene.children[i] != explosion && scene.children[i] != particleSystem) {
+          direction = normalizeVector(directionalVector(origin, scene.children[i].position));
+          scene.children[i].position.x += direction.x * 3;
+          scene.children[i].position.y += direction.y * 3;
+          scene.children[i].position.z += direction.z * 3;
+        }
+      }
+
+      for (i=0; i<particlesGeometry.vertices.length; i++) {
+        direction = normalizeVector(directionalVector(origin, particlesGeometry.vertices[i]));
+        particlesGeometry.vertices[i].x += direction.x * 3;
+        particlesGeometry.vertices[i].y += direction.y * 3;
+        particlesGeometry.vertices[i].z += direction.z * 3;
+      }
+      particlesGeometry.verticesNeedUpdate = true;
+
+      for( var i = group.children.length - 1; i >= 0; i--) {
+        direction = normalizeVector(directionalVector(origin, group.children[i].position));
+        group.children[i].position.x += direction.x * 3;
+        group.children[i].position.y += direction.y * 3;
+        group.children[i].position.z += direction.z * 3;
+      }
+
+
+      //console.log(scene.children[1].position);
+    }
+
+
+    function particleComputing() {
+      var delta = clock.getDelta() * spawnerOptions.timeScale;
+      tick += delta;
+
+      if ( tick < 0 ) tick = 0;
+
+      if ( delta > 0 ) {
+
+      if (EXPLOSIONPARTICLES) {
+        spawnerOptions.timeScale = 2;
+        earthOptions.position.x = mesh.position.x;
+        earthOptions.position.y = mesh.position.y;
+        earthOptions.position.z = mesh.position.z;
+        colors = [ 0xff0000, 0xff3300, 0xff9933, 0x990000 ];
+        earthOptions.color = colors[Math.floor((Math.random() * 4))];
+
+        //console.log(options.position);
+        for ( var x = 0; x < spawnerOptions.spawnRate * delta; x++ ) {
+          particleSystem.spawnParticle( earthOptions );
+        }
+      } else {
+        options.position.x = meshBigAsteroid.position.x + 10;
+        options.position.y = meshBigAsteroid.position.y + 10;
+        options.position.z = meshBigAsteroid.position.z + 10;
+        colors = [ 0xff0000, 0xff3300, 0xff9933, 0x990000 ];
+        options.color = colors[Math.floor((Math.random() * 4))];
+
+        //console.log(options.position);
+        for ( var x = 0; x < spawnerOptions.spawnRate * delta; x++ ) {
+          particleSystem.spawnParticle( options );
+        }
+      }
+      }
+
+      particleSystem.update( tick );
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     var render = function () {
 
-
-
+      requestAnimationFrame( render );
         document.onkeypress=function(e){
             console.log("key pressed");
             ROLLCAM = true;
         }
 
 
+        particleComputing();
 
-        requestAnimationFrame( render );
+
+
 
         mesh.rotation.y += 0.0005;
         meshAstronaut.rotation.x += 0.0008;
@@ -585,11 +724,18 @@ void main()
 
         evolveSmoke();
 
-        if (HITASTEROID)
+        if (HITASTEROID){
           hitAsteroid();
+        }
+
+
+        if (SMALLSHAKE) cameraSmallShake();
+        if (SHAKE) cameraShake();
 
         if (EXPLODE)
           explode();
+
+        if (SHOCKWAVE_b) shockwave();
 
         if (ROLLCAM && camera.position.z > 50) {
           camera.position.z -= 7;
@@ -609,8 +755,7 @@ void main()
 
 
 
-        if (SHAKE)
-          cameraShake();
+
         stats.update();
 
     };
