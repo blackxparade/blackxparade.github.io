@@ -94,6 +94,7 @@ void main()
     var particlesGeometry = new THREE.Geometry();
     var group = new THREE.Object3D();
     var options, spawnerOptions;
+    var mirrorSphereCamera = new THREE.CubeCamera;
     var camera, tick = 0, tick2 = 0, clock = new THREE.Clock(), particleSystem, earthParticles;
 
 
@@ -183,12 +184,12 @@ void main()
 
         options = {
         				position: new THREE.Vector3(),
-        				positionRandomness: 3,
+        				positionRandomness: 0.5,
         				velocity: new THREE.Vector3(),
         				velocityRandomness: 3,
         				color: 0xff0000,
         				colorRandomness: 0,
-        				turbulence: 0,
+        				turbulence: 0.5,
         				lifetime: 3,
         				size: 10,
         				sizeRandomness: 0
@@ -197,12 +198,12 @@ void main()
 
        earthOptions = {
               	position: new THREE.Vector3(),
-              	positionRandomness: 3,
+              	positionRandomness: 0.5,
               	velocity: new THREE.Vector3(),
               	velocityRandomness: 3,
               	color: 0xff0000,
               	colorRandomness: 0,
-              	turbulence: 0,
+              	turbulence: 0.5,
               	lifetime: 10,
               	size: 30,
               	sizeRandomness: 0
@@ -325,15 +326,19 @@ void main()
         });
 
         // visor
+
         var textureVisor = textureLoader.load( 'assets/visor2.png' );
         loader.load( 'assets/visor.json', function ( geometry ) {
-            material = new THREE.MeshLambertMaterial( { color: 0xf2f2f2, wireframe: false, side: THREE.DoubleSide } );
+            mirrorSphereCamera = new THREE.CubeCamera( 0.1, 5000, 512 );
+            scene.add(mirrorSphereCamera);
+            material = new THREE.MeshPhongMaterial( { emissive: 0xf2f2f2, envMap: mirrorSphereCamera.renderTarget } );
             material.map = textureVisor;
             meshVisor = new THREE.Mesh( geometry, material );
             meshVisor.scale.set( 3, 3, 3 );
             meshVisor.position.x = 1;
             meshVisor.position.y = 1;
             meshVisor.position.z = 1;
+            mirrorSphereCamera.position = meshVisor.position;
             scene.add(meshVisor);
 
         });
@@ -704,6 +709,7 @@ void main()
             ROLLCAM = true;
         }
 
+        mirrorSphereCamera.updateCubeMap( renderer, scene );
 
         particleComputing();
 
@@ -717,6 +723,8 @@ void main()
         particles.rotation.y -= 0.0001;
         meshVisor.rotation.x += 0.0008;
         meshVisor.rotation.y += 0.0008;
+        mirrorSphereCamera.rotation.x += 0.0008;
+        mirrorSphereCamera.rotation.y += 0.0008;
         group.rotation.x += 0.0003;
         group.rotation.y += 0.0003;
 
